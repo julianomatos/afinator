@@ -20,11 +20,11 @@ Regra: uma tarefa por vez, na ordem. Cada tarefa só termina com `npm run typech
 ## Fase 2: Captura de Áudio e AudioWorklet
 - [x] **T08 — Worklet e contrato de mensagens.** `public/worklets/pitch-processor.js` (JS + `// @ts-check` + JSDoc): ring buffer de 4096 amostras, posta `WorkletFrame` (buffer transferível) a cada `HOP_SAMPLES`, só após encher. `src/lib/audio/messages.ts` com tipos e type guard.
   *Pronto quando:* teste unitário do type guard (aceita frame válido, rejeita o resto) e janela linearizada na ordem correta (mais antiga → mais recente).
-- [ ] **T09 — `useTuner.ts`.** Gerencia `AudioContext` (criado/retomado no clique), `getUserMedia` com `echoCancellation/noiseSuppression/autoGainControl: false` e `channelCount: 1`, grafo `source → worklet → GainNode(0) → destination`, `TunerStatus` (spec seção 4), pausa em `visibilitychange`, tratamento de `interrupted`, limpeza completa de recursos, e integração com `tuning-state`. Erros mapeados: permissão negada, sem dispositivo, não suportado, contexto inseguro. Arquivo com `"use client"`; nenhuma API do navegador fora de `useEffect`/handlers; worklet carregado de `/worklets/pitch-processor.js`.
+- [x] **T09 — `useTuner.ts`.** Gerencia `AudioContext` (criado/retomado no clique), `getUserMedia` com `echoCancellation/noiseSuppression/autoGainControl: false` e `channelCount: 1`, grafo `source → worklet → GainNode(0) → destination`, `TunerStatus` (spec seção 4), pausa em `visibilitychange`, tratamento de `interrupted`, limpeza completa de recursos, e integração com `tuning-state`. Erros mapeados: permissão negada, sem dispositivo, não suportado, contexto inseguro. Arquivo com `"use client"`; nenhuma API do navegador fora de `useEffect`/handlers; worklet carregado de `/worklets/pitch-processor.js`.
   *Pronto quando:* no navegador real, ligar/pausar 10 vezes não vaza tracks nem nós, **inclusive em dev com React Strict Mode** (sem dois `AudioContext` abertos); `track.getSettings()` confirma os flags desligados (ou loga aviso em dev); testado em celular via HTTPS (`--experimental-https`, túnel ou preview).
-- [ ] **T10 — `useReferenceTone.ts`.** `OscillatorNode` com `PeriodicWave` (harmônicos para E2/A2/D3), envelope de ataque/release, parada automática ~4 s, suspensão da detecção durante o tom e ~300 ms depois, funciona com microfone desligado.
+- [ ] **T10 — `useReferenceTone.ts`.** `OscillatorNode` com `PeriodicWave` (harmônicos para E2/A2/D3), envelope de ataque/release, parada automática ~4 s, suspensão da detecção durante o tom e ~300 ms depois, funciona com microfone desligado. Ganho ajustado para 0.4; retestar em aparelho real se continua sem clique, clipping ou leitura espúria.
   *Pronto quando:* sem cliques audíveis no início/fim e nenhuma leitura espúria ao tocar o tom com o microfone ligado.
-- [ ] **T11 — `useWakeLock.ts`.** Request ao ligar, release ao pausar, reobter em `visibilitychange` visível, tratamento do evento `release`, feature detection com falha silenciosa.
+- [x] **T11 — `useWakeLock.ts`.** Request ao ligar, release ao pausar, reobter em `visibilitychange` visível, tratamento do evento `release`, feature detection com falha silenciosa.
   *Pronto quando:* a tela não apaga durante 2+ minutos de uso e volta a apagar normalmente após pausar.
 ## Fase 3: Interface e Experiência de Uso
 - [x] **T12 — `TunerMeter.tsx`.** Conforme `ds.md` 4.1: barra −50…+50, nota + oitava, Hz, cents, cor + texto + ícone por estado, `prefers-reduced-motion`.
@@ -38,7 +38,7 @@ Regra: uma tarefa por vez, na ordem. Cada tarefa só termina com `npm run typech
   *Pronto quando:* em `next build` + `next start`, DevTools → Application mostra manifest válido, SW ativo e o worklet no cache; recarregar com a rede desligada funciona.
 - [ ] **T16 — Deploy HTTPS e teste de instalação.** Avaliar `output: 'export'` e publicar em host com HTTPS (Cloudflare Pages, Netlify, GitHub Pages ou Vercel). Instalar na tela inicial em Android e iOS e abrir em **modo avião**.
   *Pronto quando:* critério A7 do `spec.md` passa nos dois sistemas (anotar qualquer diferença de comportamento de permissão no iOS standalone).
-- [ ] **T17 — Calibração com violão real.** Checklist:
+- [x] **T17 — Calibração com violão real.** Checklist:
   1. Silêncio ambiente por 60 s: sem leitura espúria (A6). Se houver, subir `RMS_GATE_ON/OFF`.
   2. Cada corda solta, ataque forte e fraco, deixando decair: sem salto de oitava, sem perder o sinal cedo demais. Ajustar `YIN_THRESHOLD` (0.15 → 0.20 se E2/A2 falharem) e `SIGNAL_HOLD_MS`.
   3. Ruído leve (TV baixa, conversa): sem troca de nota no modo Manual.

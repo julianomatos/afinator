@@ -53,7 +53,7 @@ export const STRING_HIGHLIGHT_MAX_CENTS = 100;
 export const MANUAL_LOCK_WINDOW_CENTS = 300;
 
 /** Peak output gain for a reference tone, relative to full-scale amplitude. */
-export const REFERENCE_TONE_GAIN = 0.3;
+export const REFERENCE_TONE_GAIN = 0.4;
 
 /** Reference-tone attack duration, in milliseconds. */
 export const REFERENCE_TONE_ATTACK_MS = 20;
