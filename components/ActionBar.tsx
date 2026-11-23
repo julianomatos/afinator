@@ -2,16 +2,13 @@
 
 import { STRINGS } from "@/lib/audio/pitch";
 import type { TunerMode } from "@/lib/audio/tuning-state";
-import type { TunerStatus } from "@/hooks/useTuner";
 
 interface ActionBarProps {
   readonly mode: TunerMode;
   readonly highlightedStringIndex: number | null;
-  readonly tunerStatus: TunerStatus;
   readonly isReferenceTonePlaying: boolean;
   readonly onModeChange: (mode: TunerMode) => void;
   readonly onToggleReferenceTone: () => void;
-  readonly onToggleMicrophone: () => void;
 }
 
 export function getManualTunerMode(
@@ -35,11 +32,9 @@ export function getManualTunerMode(
 export function ActionBar({
   mode,
   highlightedStringIndex,
-  tunerStatus,
   isReferenceTonePlaying,
   onModeChange,
   onToggleReferenceTone,
-  onToggleMicrophone,
 }: ActionBarProps) {
   const isManual = mode.kind === "manual";
   const hasHighlightedString =
@@ -48,21 +43,6 @@ export function ActionBar({
   const hasReferenceTarget = isManual
     ? STRINGS[mode.stringIndex] !== undefined
     : hasHighlightedString;
-  const isListening = tunerStatus.kind === "listening";
-  const isRequesting = tunerStatus.kind === "requesting";
-  const isMicrophoneUnavailable =
-    tunerStatus.kind === "error" &&
-    (tunerStatus.reason === "unsupported" ||
-      tunerStatus.reason === "insecure-context");
-  const canRetry =
-    tunerStatus.kind === "error" &&
-    (tunerStatus.reason === "permission-denied" ||
-      tunerStatus.reason === "no-device");
-  const microphoneAction = canRetry
-    ? "Tentar novamente"
-    : isListening
-      ? "Pausar"
-      : "Ligar microfone";
 
   return (
     <div className="space-y-3 pb-[env(safe-area-inset-bottom)]">
@@ -124,27 +104,6 @@ export function ActionBar({
         ) : (
           "Ouvir Nota"
         )}
-      </button>
-
-      <button
-        aria-label={
-          isRequesting
-            ? "Solicitando acesso ao microfone"
-            : isListening
-              ? "Pausar microfone"
-              : canRetry
-                ? "Tentar novamente"
-                : "Ligar microfone"
-        }
-        aria-pressed={isListening}
-        className="min-h-12 w-full touch-manipulation select-none rounded-lg bg-emerald-500 px-4 font-bold text-zinc-950 transition-colors hover:bg-emerald-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 disabled:cursor-wait disabled:opacity-60 motion-reduce:transition-none"
-        disabled={isRequesting || isMicrophoneUnavailable}
-        onClick={onToggleMicrophone}
-        type="button"
-      >
-        {isRequesting
-          ? "Solicitando acesso…"
-          : microphoneAction}
       </button>
     </div>
   );

@@ -9,7 +9,7 @@ Entregar um afinador de violão preciso, responsivo e sem distrações, instalá
 **Fora do MVP (backlog):** afinações alternativas (Drop D, DADGAD…), calibração de A4, outros instrumentos, histórico, ajustes persistidos além do último modo usado, i18n.
  
 ## 3. Requisitos Funcionais
-- **RF01 — Ativação de Áudio:** botão claro para ligar/pausar o microfone. `AudioContext` é criado/retomado dentro do handler do clique (política de gesto do usuário).
+- **RF01 — Ativação de Áudio:** no estado `idle`, o usuário inicia pelo CTA central **"Toque para afinar"** ou tocando uma das cordas; o CTA inicia em Auto, enquanto tocar numa corda inicia a captura já em modo Manual com aquela corda travada. `AudioContext` e `getUserMedia` são chamados dentro do handler do gesto. O microfone nunca inicia automaticamente ao carregar a página.
 - **RF02 — Modo Automático:** cromático. Detecta a fundamental, identifica a nota mais próxima (nome + oitava) e o desvio em *cents* em relação a ela. Destaca no seletor a corda padrão mais próxima, somente se estiver a até `STRING_HIGHLIGHT_MAX_CENTS` dela; caso contrário, nenhuma corda é destacada.
 - **RF03 — Modo Manual (trava de corda):** o usuário seleciona uma das 6 cordas (E2, A2, D3, G3, B3, E4). O alvo é **a frequência dessa corda**, não a nota mais próxima: `cents = 1200 * log2(freq / freqAlvoDaCorda)`. Leituras a mais de `MANUAL_LOCK_WINDOW_CENTS` do alvo são ignoradas (outra corda, harmônico ou ruído). Isso impede o falso "Afinado" em uma nota errada quando a corda está muito fora do tom.
 - **RF04 — Indicador Visual:** nota detectada, frequência em Hz, desvio em cents, direção e estado.
@@ -17,23 +17,28 @@ Entregar um afinador de violão preciso, responsivo e sem distrações, instalá
   - Estados: **Afinado** (`|cents| <= 4`), **Quase** (`4 < |cents| <= 15`), **Desafinado** (`> 15`), **Sem sinal**.
   - A escala visual vai de −50 a +50; fora dela o ponteiro encosta na extremidade e a seta de direção continua indicando o sentido.
   - Histerese no estado Afinado (ver 5.4) para evitar piscar na borda.
-- **RF05 — Tom de Referência:** botão que toca a corda selecionada (no modo Automático, a corda destacada; se nenhuma, o botão fica desabilitado). Detalhes na seção 7.
+- **RF05 — Tom de Referência:** botão que toca a corda selecionada, inclusive em `idle`, sem ligar o microfone. No modo Automático usa a corda destacada; se nenhuma estiver destacada, fica desabilitado. Em Manual usa a corda travada.
 - **RF06 — Manter Tela Ativa:** Screen Wake Lock enquanto o microfone estiver ativo; reobter ao voltar para a aba; falha silenciosa se não houver suporte.
 - **RF07 — Uso Offline (PWA):** funcionar sem conexão após o primeiro carregamento, incluindo o worklet.
 - **RF08 — Estados e Erros:** a UI cobre `idle`, `requesting`, `listening`, `paused`, `error` (`permission-denied`, `no-device`, `unsupported`, `insecure-context`) com mensagem clara e ação sugerida (ver `ds.md`).
+- **RF09 — Retomada e inatividade:**
+  - Ao voltar à aba depois de ela ter sido ocultada, tentar retomar sem novo gesto usando `AudioContext.resume()` e `getUserMedia`. Se o contexto não chegar a `running` dentro de `AUTO_RESUME_TIMEOUT_MS`, liberar os recursos da tentativa e exibir **"Toque para retomar"** (`paused`, `reason: 'resume-required'`). Se o navegador não permitir a retomada automática, a ação explícita do usuário inicia uma nova sessão.
+  - Após `IDLE_TIMEOUT_MS` sem leitura de pitch válida, pausar automaticamente, liberar os recursos de captura e exibir **"Pausado por inatividade"** (`paused`, `reason: 'inactivity'`). Cada leitura válida reinicia o prazo. O prazo não avança enquanto a detecção estiver suspensa pelo tom de referência ou por sua cauda de 300 ms.
 ## 4. Máquina de Estados do Tuner
 ```ts
 type TunerStatus =
   | { kind: 'idle' }
   | { kind: 'requesting' }
   | { kind: 'listening' }
-  | { kind: 'paused' }
+  | { kind: 'paused'; reason: 'user' | 'hidden' | 'inactivity' | 'resume-required' | 'interrupted' }
   | { kind: 'error'; reason: 'permission-denied' | 'no-device' | 'unsupported' | 'insecure-context' };
  
 type TunerMode = { kind: 'auto' } | { kind: 'manual'; stringIndex: number };
 ```
-- Página oculta (`visibilitychange`) → pausa o microfone e libera recursos. Ao voltar, o usuário toca em Ligar.
-- `AudioContext.state === 'interrupted'` (iOS: ligação, Siri) → status `paused`.
+- `idle` → `requesting` por gesto no CTA (Auto) ou numa corda (Manual, corda tocada).
+- `listening` → `paused:user` por ação explícita, `paused:hidden` quando a página fica oculta, `paused:inactivity` após `IDLE_TIMEOUT_MS`, ou `paused:interrupted` se o contexto for interrompido. Todos liberam tracks, nós, wake lock e lease do contexto.
+- `paused:hidden` → ao voltar à aba, tentar `resume()` + `getUserMedia` sem gesto. Sucesso → `listening`; se o contexto não ficar `running` em `AUTO_RESUME_TIMEOUT_MS` → `paused:resume-required`. `paused:resume-required`, `paused:user` e `paused:inactivity` retomam após o CTA/gesto do usuário.
+- `AudioContext.state === 'interrupted'` (iOS: ligação, Siri) → `paused:interrupted`.
 - Tom de referência tocando → detecção suspensa (ver seção 7).
 ## 5. Especificação Matemática e DSP
  
@@ -93,6 +98,8 @@ Pipeline por frame:
 | `HOP_SAMPLES` | 2048 | Passo entre análises (≈ 23 frames/s a 48 kHz) |
 | `RMS_GATE_ON` / `RMS_GATE_OFF` | 0.010 / 0.006 | ≈ −40 dBFS / −44 dBFS; histerese do gate |
 | `SIGNAL_HOLD_MS` | 400 | Mantém leitura durante o decaimento da corda |
+| `IDLE_TIMEOUT_MS` | 150000 | Pausa a captura após 2,5 min sem leitura de pitch válida |
+| `AUTO_RESUME_TIMEOUT_MS` | 500 | Tempo máximo para o AudioContext voltar a `running` ao retornar à aba sem gesto |
 | `MEDIAN_SIZE` | 5 | Janela da mediana (≈ 220 ms) |
 | `EMA_ALPHA` | 0.25 | Suavização do ponteiro |
 | `JUMP_RESET_CENTS` | 80 | Salto que indica nova nota |
@@ -121,6 +128,7 @@ O worklet acumula blocos de 128 amostras no ring buffer e posta um `WorkletFrame
 - Ganho máximo conservador (≈ 0.3). Para automaticamente após ~4 s ou ao tocar de novo.
 - **Detecção suspensa** enquanto o tom toca e por ~300 ms depois, para o microfone não captar o próprio tom. A UI mostra "Tocando referência".
 - Funciona com o microfone desligado (usa o mesmo `AudioContext`, criado no gesto).
+- No estado `idle`, o botão continua disponível se houver alvo Manual; isso permite ouvir a referência sem iniciar o microfone.
 ## 8. PWA
 - Manifest em `app/manifest.ts`: `name`, `short_name`, `start_url: '/'`, `display: 'standalone'`, `orientation: 'portrait'`, `theme_color` e `background_color` = `#09090B`, ícones 192/512 e `maskable` 512.
 - Service Worker (Serwist, `app/sw.ts`) com precache de **todos** os assets de build e da rota `/`, e também de `/worklets/pitch-processor.js` e dos ícones de `public/` (confirmar que entram no precache; usar `additionalPrecacheEntries` se necessário). Esquecer o worklet quebra o app offline. Fallback de navegação para `/`.
@@ -141,6 +149,9 @@ Manuais (dispositivo real):
 - **A7:** instalado e aberto em modo avião, o app carrega e afina.
 - **A8:** violão real em ambiente silencioso, comparado com um tom de referência conhecido ou outro afinador confiável: diferença `<= 3 cents`.
 - **A9:** latência da palhetada até a primeira leitura `<= 300 ms`; análise por frame `< 5 ms` na main thread.
+- **A10:** com relógio `nowMs` injetado, o timeout de inatividade só pausa após `IDLE_TIMEOUT_MS` sem leitura válida; qualquer leitura válida reinicia o contador; detecção suspensa pelo tom não dispara o timeout.
+- **A11:** em `idle`, tocar no CTA inicia o microfone; tocar numa corda inicia o microfone e trava exatamente essa corda em Manual.
+- **A12:** ao voltar à aba, desktop/Android retomam a escuta sem novo toque ou exibem "Toque para retomar" após `AUTO_RESUME_TIMEOUT_MS`; validar o resultado em dispositivo real e anotar o comportamento em iOS.
 ## 10. Decisões
 - Next.js (App Router) já adotado no projeto: usado como shell client-side; sem API/Server Actions; SSR limitado a `layout`/`page` finos; PWA via Serwist.
 - Médias e medianas em log-frequência (`midiFloat`).
@@ -151,5 +162,6 @@ Manuais (dispositivo real):
 - T10: microfone e tom de referência compartilham um `AudioContext` por leases; pausar o microfone não interrompe um tom já iniciado, e o contexto fecha após a liberação do último lease. Após validação em violão real, o ganho do tom foi aumentado de 0.3 para 0.4 (amplitude relativa) a pedido do usuário.
 - T13: ao trocar de Auto para Manual, travar a corda destacada; sem destaque, iniciar na E2 (corda 6).
 - T15: PWA usa Serwist 9.5.15 integrado ao Next 16 via build Webpack; o worklet, rota `/`, ícones e assets do build são precacheados, com fallback de navegação para `/` e ativação via `skipWaiting`/`clientsClaim`.
+- T14b: o microfone nunca liga ao carregar a página; a ativação inicial exige gesto explícito para respeitar autoplay, consentimento contextual de permissão, privacidade e bateria. A retomada após retorno à aba é apenas uma tentativa e sempre oferece recuperação por gesto.
 - (Registrar novas decisões aqui.)
  

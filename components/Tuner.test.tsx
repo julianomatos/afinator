@@ -9,10 +9,14 @@ import {
 import type { TunerStatus } from "@/hooks/useTuner";
 
 const statusMessageCases: ReadonlyArray<readonly [TunerStatus, string]> = [
-  [{ kind: "idle" }, "Toque em Ligar e dedilhe uma corda"],
+  [{ kind: "idle" }, "Toque para afinar"],
   [{ kind: "requesting" }, "Aguardando permissão do microfone…"],
   [{ kind: "listening" }, "Ouvindo"],
-  [{ kind: "paused" }, "Pausado"],
+  [{ kind: "paused", reason: "user" }, "Pausado"],
+  [{ kind: "paused", reason: "hidden" }, "Retomando…"],
+  [{ kind: "paused", reason: "inactivity" }, "Pausado por inatividade"],
+  [{ kind: "paused", reason: "resume-required" }, "Toque para retomar"],
+  [{ kind: "paused", reason: "interrupted" }, "Pausado"],
   [
     { kind: "error", reason: "permission-denied" },
     "Sem acesso ao microfone. Libere nas configurações do navegador e tente de novo.",
@@ -56,7 +60,7 @@ describe("Tuner server render", () => {
     const markup = renderToStaticMarkup(<Tuner />);
 
     expect(markup).toContain("Afinador de violão");
-    expect(markup).toContain("Toque em Ligar e dedilhe uma corda");
-    expect(markup).toContain("Ligar microfone");
+    expect(markup).toContain("Toque para afinar");
+    expect(markup).not.toContain("Ligar microfone");
   });
 });

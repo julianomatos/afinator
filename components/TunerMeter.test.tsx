@@ -36,6 +36,26 @@ describe("TunerMeter", () => {
     expect(markup).toContain("bg-zinc-600");
   });
 
+  test("dims the idle note without dimming the surrounding status text", () => {
+    const markup = renderToStaticMarkup(
+      <TunerMeter
+        inactive
+        state={{
+          ...BASE_STATE,
+          status: "no-signal",
+          frequency: null,
+          note: null,
+          cents: null,
+          direction: null,
+        }}
+      />,
+    );
+
+    expect(markup).toContain("text-zinc-600");
+    expect(markup).toContain("text-zinc-400");
+    expect(markup).not.toContain("opacity-40");
+  });
+
   test("renders note, cents, tuning message, and clamps the pointer", () => {
     const markup = renderMeter({
       status: "out-of-tune",

@@ -2,6 +2,7 @@ import type { TuningState, TuningStatus } from "@/lib/audio/tuning-state";
 
 interface TunerMeterProps {
   readonly state: TuningState;
+  readonly inactive?: boolean;
 }
 
 interface StatusPresentation {
@@ -92,7 +93,7 @@ function formatCents(cents: number | null): string {
   return `${sign}${Math.round(Math.abs(cents))} ¢`;
 }
 
-export function TunerMeter({ state }: TunerMeterProps) {
+export function TunerMeter({ state, inactive = false }: TunerMeterProps) {
   const presentation = getStatusPresentation(state);
   const cents = state.cents;
   const clampedCents = cents === null ? 0 : Math.min(50, Math.max(-50, cents));
@@ -118,7 +119,7 @@ export function TunerMeter({ state }: TunerMeterProps) {
             ? "Sem nota detectada"
             : `Nota ${state.note.name}, oitava ${state.note.octave}`
         }
-        className={`flex min-h-28 items-baseline justify-center gap-1 leading-none ${presentation.colorClass}`}
+        className={`flex min-h-28 items-baseline justify-center gap-1 leading-none ${inactive ? "text-zinc-600" : presentation.colorClass}`}
       >
         {state.note === null ? (
           <span

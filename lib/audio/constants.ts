@@ -25,6 +25,12 @@ export const RMS_GATE_OFF = 0.006;
 /** Time to retain the last valid pitch while a plucked string decays, in milliseconds. */
 export const SIGNAL_HOLD_MS = 400;
 
+/** Idle listening duration without a valid pitch before pausing, in milliseconds. */
+export const IDLE_TIMEOUT_MS = 150_000;
+
+/** Maximum wait for AudioContext to resume automatically when the page becomes visible. */
+export const AUTO_RESUME_TIMEOUT_MS = 500;
+
 /** Number of recent MIDI-pitch readings used by the median filter. */
 export const MEDIAN_SIZE = 5;
 

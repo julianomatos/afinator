@@ -37,21 +37,35 @@ Convenção: nota grave (`cents < 0`) → apertar a tarraxa (sobe a altura); not
 - Hz e cents: 1rem–1.25rem, `text-muted`.
 - Mobile-first, portrait. Tela cheia: `min-height: 100dvh`. Respeitar `env(safe-area-inset-*)` (notch e barra de gestos) no padding inferior. `viewport-fit=cover` e `themeColor: '#09090B'` via `export const viewport` em `layout.tsx`.
 - Alvos de toque ≥ 48×48 px, espaçamento ≥ 8 px. `touch-action: manipulation`; `user-select: none` nos controles.
-Wireframe (portrait):
+Wireframe (portrait), estado idle:
 ```
 ┌──────────────────────────┐
-│  status (ex.: "Ouvindo") │  topo: apenas informação
+│  Toque uma corda          │  status discreto
 │                          │
-│          E 2             │  nota gigante + oitava
-│       82.4 Hz · −2 ¢     │
+│          --              │  nota apagada
+│       — Hz · — ¢         │
 │                          │
-│  ├──┼──┼──┼──┼──┼──┼──┤  │  barra de cents −50 … 0 … +50
-│            ▲             │
-│     ✓ Afinado            │  texto + ícone do estado
+│  ├──┼──┼──┼──┼──┼──┼──┤  │  barra apagada
 │                          │
-│ (E2)(A2)(D3)(G3)(B3)(E4) │  ↓ metade inferior
+│ (E2)(A2)(D3)(G3)(B3)(E4) │  seletor sempre visível
+│                          │
+│     Toque para afinar    │  CTA central grande
 │ [ Auto | Manual ] [Ouvir]│
-│ [   Ligar microfone    ] │
+└──────────────────────────┘
+```
+Wireframe (portrait), estado ouvindo:
+```
+┌──────────────────────────┐
+│ Ouvindo              [Ⅱ] │  Pausar pequeno no topo, alvo >= 48 px
+│                          │
+│          E 2             │
+│       82.4 Hz · −2 ¢     │
+│  ├──┼──┼──┼──┼──┼──┼──┤  │
+│            ▲             │
+│     ✓ Afinado            │
+│                          │
+│ (E2)(A2)(D3)(G3)(B3)(E4) │  zona do polegar
+│ [ Auto | Manual ] [Ouvir]│
 └──────────────────────────┘
 ```
  
@@ -68,20 +82,25 @@ Wireframe (portrait):
 - **Modo Auto:** o botão da corda detectada (se houver) recebe anel na cor do estado; toque nos botões troca para Manual com aquela corda.
 - **Modo Manual:** corda travada com preenchimento sólido + ícone de cadeado pequeno; toque em outra corda troca a trava; toque na mesma volta ao Auto.
 - Mesmos botões acionam o contexto do tom de referência.
+- Em `idle`, tocar numa corda inicia o microfone e seleciona essa corda em modo Manual.
 ### 4.3 Barra Inferior de Ações (`ActionBar`)
 - Toggle segmentado `Automático / Manual`.
 - Botão `Ouvir Nota` (desabilitado sem corda alvo; mostra "Tocando…" com ícone animado enquanto toca; toque novamente para parar).
-- Botão primário full-width `Ligar microfone` / `Pausar` (cor de destaque; estado ativo claramente distinto).
+- Não há botão primário largo para ligar/pausar. Em `idle`, mostrar o CTA central grande **"Toque para afinar"**; tocar nele inicia o microfone em Auto. Ao ouvir, mostrar no topo um botão-ícone **Pausar microfone**, com `aria-label="Pausar microfone"` e alvo de toque de pelo menos 48×48 px. O seletor de cordas, toggle e `Ouvir Nota` ficam na zona do polegar.
 ## 5. Estados e Mensagens
 | Situação | Mensagem | Ação |
 |---|---|---|
-| `idle` | "Toque em Ligar e dedilhe uma corda" | Botão Ligar |
+| `idle` | "Toque para afinar" | CTA central inicia em Auto; tocar numa corda inicia em Manual nessa corda |
 | `requesting` | "Aguardando permissão do microfone…" | — |
 | `error: permission-denied` | "Sem acesso ao microfone. Libere nas configurações do navegador e tente de novo." | Botão "Tentar novamente" |
 | `error: no-device` | "Nenhum microfone encontrado." | Tentar novamente |
 | `error: unsupported` | "Este navegador não suporta o afinador. Use Chrome, Safari ou Edge atualizados." | — |
 | `error: insecure-context` | "O afinador precisa de conexão segura (HTTPS)." | — |
-| `paused` | "Pausado" | Botão Ligar |
+| `paused:user` | "Pausado" | CTA "Toque para afinar" |
+| `paused:hidden` | Tentativa de retomada ao retornar à aba | Retomada automática; se falhar, "Toque para retomar" |
+| `paused:inactivity` | "Pausado por inatividade" | CTA "Toque para retomar" |
+| `paused:resume-required` | "Toque para retomar" | CTA central |
+| `paused:interrupted` | "Pausado" | CTA "Toque para retomar" |
 | Tom tocando | "Tocando referência" (detecção suspensa) | Parar |
  
 ## 6. Acessibilidade

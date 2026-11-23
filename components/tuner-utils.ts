@@ -33,13 +33,23 @@ export function serializeTunerMode(mode: TunerMode): string {
 export function getTunerStatusMessage(status: TunerStatus): string {
   switch (status.kind) {
     case "idle":
-      return "Toque em Ligar e dedilhe uma corda";
+      return "Toque para afinar";
     case "requesting":
       return "Aguardando permissão do microfone…";
     case "listening":
       return "Ouvindo";
     case "paused":
-      return "Pausado";
+      switch (status.reason) {
+        case "hidden":
+          return "Retomando…";
+        case "inactivity":
+          return "Pausado por inatividade";
+        case "resume-required":
+          return "Toque para retomar";
+        case "user":
+        case "interrupted":
+          return "Pausado";
+      }
     case "error":
       switch (status.reason) {
         case "permission-denied":

@@ -20,6 +20,7 @@ import {
   parseStoredTunerMode,
   serializeTunerMode,
 } from "@/components/tuner-utils";
+import { getStringSelectionMode } from "@/components/StringSelector";
 
 const MODE_STORAGE_KEY = "afinador:last-mode";
 const INITIAL_MODE: TunerMode = { kind: "auto" };
@@ -125,23 +126,38 @@ export function Tuner() {
     }
   }, [mode, modeLoaded]);
 
-  const handleMicrophoneToggle = useCallback(() => {
-    if (status.kind === "listening") {
-      pause();
-      return;
-    }
+  const handleStart = useCallback((stringIndex?: number) => {
     if (
       status.kind === "requesting" ||
+      status.kind === "listening" ||
       (status.kind === "error" &&
         (status.reason === "unsupported" ||
           status.reason === "insecure-context"))
     ) {
       return;
     }
-    void start().catch((error: unknown) => {
+    if (stringIndex !== undefined) {
+      modeStore.setMode({ kind: "manual", stringIndex });
+    } else if (status.kind === "idle") {
+      modeStore.setMode({ kind: "auto" });
+    }
+    void start(stringIndex).catch((error: unknown) => {
       console.error("Não foi possível iniciar o afinador.", error);
     });
-  }, [pause, start, status]);
+  }, [modeStore, start, status]);
+
+  const handleStringSelect = useCallback(
+    (stringIndex: number) => {
+      if (status.kind === "listening" || status.kind === "requesting") {
+        modeStore.setMode(
+          getStringSelectionMode(mode, stringIndex),
+        );
+        return;
+      }
+      handleStart(stringIndex);
+    },
+    [handleStart, mode, modeStore, status.kind],
+  );
 
   const handleReferenceToneToggle = useCallback(() => {
     setReferenceToneError(null);
@@ -164,19 +180,60 @@ export function Tuner() {
       : status.kind === "error"
         ? "text-red-400"
         : "text-zinc-400";
+  const startActionLabel =
+    status.kind === "idle"
+      ? "Toque para afinar"
+      : status.kind === "paused"
+        ? status.reason === "user"
+          ? "Toque para afinar"
+          : "Toque para retomar"
+        : status.kind === "error" &&
+            (status.reason === "permission-denied" ||
+              status.reason === "no-device")
+          ? "Tentar novamente"
+          : null;
 
   return (
     <main className="flex min-h-dvh flex-col bg-[#09090B] px-4 py-4 text-zinc-50">
-      <header>
+      <header className="flex min-h-12 items-center justify-between gap-3">
         <h1 className="sr-only">Afinador de violão</h1>
         <p aria-live="polite" className={`text-sm ${statusColor}`} role="status">
           {getTunerStatusMessage(status)}
         </p>
+        {status.kind === "listening" && (
+          <button
+            aria-label="Pausar microfone"
+            className="flex h-12 w-12 shrink-0 touch-manipulation items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-lg text-zinc-100 transition-colors hover:bg-zinc-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 motion-reduce:transition-none"
+            onClick={() => pause("user")}
+            type="button"
+          >
+            <span aria-hidden="true">Ⅱ</span>
+          </button>
+        )}
       </header>
 
       <div className="flex flex-1 flex-col justify-center gap-7 py-5">
-        <TunerMeter state={tuning} />
-        <StringSelector mode={mode} onModeChange={modeStore.setMode} tuning={tuning} />
+        <TunerMeter inactive={status.kind === "idle"} state={tuning} />
+        {startActionLabel !== null && (
+          <button
+            className="mx-auto min-h-16 w-full max-w-sm touch-manipulation select-none rounded-2xl bg-emerald-500 px-5 text-lg font-bold text-zinc-950 shadow-lg shadow-emerald-950/30 transition-colors hover:bg-emerald-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300 disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
+            disabled={
+              status.kind === "error" &&
+              (status.reason === "unsupported" ||
+                status.reason === "insecure-context")
+            }
+            onClick={() => handleStart()}
+            type="button"
+          >
+            {startActionLabel}
+          </button>
+        )}
+        <StringSelector
+          mode={mode}
+          onModeChange={modeStore.setMode}
+          onStringSelect={handleStringSelect}
+          tuning={tuning}
+        />
       </div>
 
       <ActionBar
@@ -184,9 +241,7 @@ export function Tuner() {
         isReferenceTonePlaying={isPlaying}
         mode={mode}
         onModeChange={modeStore.setMode}
-        onToggleMicrophone={handleMicrophoneToggle}
         onToggleReferenceTone={handleReferenceToneToggle}
-        tunerStatus={status}
       />
 
       {referenceToneError !== null && (

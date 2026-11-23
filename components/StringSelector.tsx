@@ -11,6 +11,7 @@ interface StringSelectorProps {
   readonly mode: TunerMode;
   readonly tuning: TuningState;
   readonly onModeChange: (mode: TunerMode) => void;
+  readonly onStringSelect?: (stringIndex: number) => void;
 }
 
 const PORTUGUESE_STRING_NAMES: readonly string[] = [
@@ -43,6 +44,7 @@ export function StringSelector({
   mode,
   tuning,
   onModeChange,
+  onStringSelect,
 }: StringSelectorProps) {
   return (
     <div
@@ -79,9 +81,13 @@ export function StringSelector({
             aria-label={`Corda ${string.stringNumber}, ${stringDescription}, ${string.name}${string.octave}${stateDescription}`}
             aria-pressed={isSelected}
             className={`relative flex h-12 min-w-0 touch-manipulation select-none flex-col items-center justify-center rounded-full border text-xs font-semibold leading-tight transition-colors duration-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 motion-reduce:transition-none ${buttonClass}`}
-            onClick={() =>
-              onModeChange(getStringSelectionMode(mode, string.stringIndex))
-            }
+            onClick={() => {
+              if (onStringSelect !== undefined) {
+                onStringSelect(string.stringIndex);
+                return;
+              }
+              onModeChange(getStringSelectionMode(mode, string.stringIndex));
+            }}
             type="button"
           >
             <span className="text-sm">

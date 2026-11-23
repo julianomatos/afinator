@@ -6,16 +6,12 @@ import {
   getManualTunerMode,
 } from "@/components/ActionBar";
 import type { TunerMode } from "@/lib/audio/tuning-state";
-import type { TunerStatus } from "@/hooks/useTuner";
 
-const IDLE_STATUS: TunerStatus = { kind: "idle" };
 const DEFAULT_PROPS = {
   highlightedStringIndex: null,
-  tunerStatus: IDLE_STATUS,
   isReferenceTonePlaying: false,
   onModeChange: () => {},
   onToggleReferenceTone: () => {},
-  onToggleMicrophone: () => {},
 };
 
 describe("ActionBar", () => {
@@ -34,7 +30,7 @@ describe("ActionBar", () => {
     });
   });
 
-  test("disables reference tone without a target and exposes the microphone action", () => {
+  test("disables the reference tone without a target and has no primary microphone action", () => {
     const markup = renderToStaticMarkup(
       <ActionBar {...DEFAULT_PROPS} mode={{ kind: "auto" }} />,
     );
@@ -42,7 +38,7 @@ describe("ActionBar", () => {
     expect(markup).toContain("Automático");
     expect(markup).toContain("Ouvir Nota");
     expect(markup).toContain("disabled=\"\"");
-    expect(markup).toContain("Ligar microfone");
+    expect(markup).not.toContain("Ligar microfone");
     expect(markup).toContain("min-h-12");
     expect(markup).toContain("safe-area-inset-bottom");
   });
@@ -61,25 +57,4 @@ describe("ActionBar", () => {
     expect(markup).toContain('aria-label="Parar tom de referência"');
   });
 
-  test("offers retries for recoverable microphone errors and disables unsupported browsers", () => {
-    const retryMarkup = renderToStaticMarkup(
-      <ActionBar
-        {...DEFAULT_PROPS}
-        mode={{ kind: "auto" }}
-        tunerStatus={{ kind: "error", reason: "permission-denied" }}
-      />,
-    );
-    const unavailableMarkup = renderToStaticMarkup(
-      <ActionBar
-        {...DEFAULT_PROPS}
-        mode={{ kind: "auto" }}
-        tunerStatus={{ kind: "error", reason: "unsupported" }}
-      />,
-    );
-
-    expect(retryMarkup).toContain('aria-label="Tentar novamente"');
-    expect(unavailableMarkup).toMatch(
-      /aria-label="Ligar microfone"[^>]*disabled=""/,
-    );
-  });
 });

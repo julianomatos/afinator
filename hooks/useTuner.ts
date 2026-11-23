@@ -9,7 +9,14 @@ import {
   type TunerMode,
   type TuningState,
 } from "@/lib/audio/tuning-state";
+import { MANUAL_LOCK_WINDOW_CENTS } from "@/lib/audio/constants";
+import { centsBetween, STRINGS } from "@/lib/audio/pitch";
 import { isWorkletFrame } from "@/lib/audio/messages";
+import { AUTO_RESUME_TIMEOUT_MS } from "@/lib/audio/constants";
+import {
+  updateInactivity,
+  type InactivityState,
+} from "@/lib/audio/inactivity";
 import {
   isPitchDetectionSuspended,
   sharedAudioContextManager,
@@ -26,14 +33,24 @@ export type TunerStatus =
   | { kind: "idle" }
   | { kind: "requesting" }
   | { kind: "listening" }
-  | { kind: "paused" }
+  | {
+      kind: "paused";
+      reason:
+        | "user"
+        | "hidden"
+        | "inactivity"
+        | "resume-required"
+        | "interrupted";
+    }
   | { kind: "error"; reason: TunerErrorReason };
 
 export interface UseTunerResult {
   readonly status: TunerStatus;
   readonly tuning: TuningState;
-  readonly start: () => Promise<void>;
-  readonly pause: () => void;
+  readonly start: (stringIndex?: number) => Promise<void>;
+  readonly pause: (
+    reason?: "user" | "hidden" | "inactivity" | "interrupted",
+  ) => void;
 }
 
 const MICROPHONE_CONSTRAINTS: MediaStreamConstraints = {
@@ -71,6 +88,9 @@ export function useTuner(mode: TunerMode): UseTunerResult {
   const contextStateChangeRef = useRef<(() => void) | null>(null);
   const tuningMachineRef = useRef<TuningStateMachine | null>(null);
   const analysisGateRef = useRef<RmsGate | null>(null);
+  const inactivityStateRef = useRef<InactivityState>({
+    lastActivityAtMs: null,
+  });
 
   if (tuningMachineRef.current === null) {
     tuningMachineRef.current = new TuningStateMachine();
@@ -119,6 +139,7 @@ export function useTuner(mode: TunerMode): UseTunerResult {
 
     tuningMachineRef.current?.reset();
     analysisGateRef.current?.reset();
+    inactivityStateRef.current = { lastActivityAtMs: null };
     if (clearTuning) {
       setTuning(NO_TUNING_SIGNAL);
     }
@@ -144,22 +165,44 @@ export function useTuner(mode: TunerMode): UseTunerResult {
     [releaseAudioResources, updateStatus],
   );
 
-  const pause = useCallback(() => {
-    const currentKind = statusRef.current.kind;
-    if (currentKind !== "listening" && currentKind !== "requesting") {
-      return;
-    }
+  const pause = useCallback(
+    (
+      reason:
+        | "user"
+        | "hidden"
+        | "inactivity"
+        | "interrupted" = "user",
+    ) => {
+      const currentKind = statusRef.current.kind;
+      if (currentKind !== "listening" && currentKind !== "requesting") {
+        return;
+      }
 
-    sessionIdRef.current += 1;
-    startingRef.current = false;
-    releaseAudioResources(true);
-    updateStatus({ kind: "paused" });
-  }, [releaseAudioResources, updateStatus]);
+      sessionIdRef.current += 1;
+      startingRef.current = false;
+      releaseAudioResources(true);
+      updateStatus({ kind: "paused", reason });
+    },
+    [releaseAudioResources, updateStatus],
+  );
 
-  const start = useCallback(async () => {
+  const start = useCallback(async (stringIndex?: number) => {
     if (startingRef.current || statusRef.current.kind === "listening") {
       return;
     }
+    if (stringIndex !== undefined) {
+      const selectedString = STRINGS[stringIndex];
+      if (selectedString === undefined) {
+        throw new RangeError("stringIndex is outside standard tuning");
+      }
+      modeRef.current = { kind: "manual", stringIndex };
+    } else if (statusRef.current.kind === "idle") {
+      modeRef.current = { kind: "auto" };
+    }
+    const automaticResume =
+      statusRef.current.kind === "paused" &&
+      statusRef.current.reason === "hidden" &&
+      stringIndex === undefined;
     if (typeof window === "undefined" || typeof navigator === "undefined") {
       updateStatus({ kind: "error", reason: "unsupported" });
       return;
@@ -195,16 +238,30 @@ export function useTuner(mode: TunerMode): UseTunerResult {
           contextState === "interrupted" &&
           sessionIdRef.current === sessionId
         ) {
-          sessionIdRef.current += 1;
-          startingRef.current = false;
-          releaseAudioResources(true);
-          updateStatus({ kind: "paused" });
+          pause("interrupted");
         }
       };
       contextStateChangeRef.current = onContextStateChange;
       context.addEventListener("statechange", onContextStateChange);
 
-      await context.resume();
+      if (automaticResume) {
+        const resumed = await resumeAudioContextWithTimeout(
+          context,
+          AUTO_RESUME_TIMEOUT_MS,
+        );
+        if (sessionIdRef.current !== sessionId) {
+          return;
+        }
+        if (!resumed) {
+          sessionIdRef.current += 1;
+          startingRef.current = false;
+          releaseAudioResources(true);
+          updateStatus({ kind: "paused", reason: "resume-required" });
+          return;
+        }
+      } else {
+        await context.resume();
+      }
       if (sessionIdRef.current !== sessionId) {
         return;
       }
@@ -267,18 +324,33 @@ export function useTuner(mode: TunerMode): UseTunerResult {
           if (detectionSuppressed) {
             analysisGateRef.current?.reset();
           }
-          const detection =
-            !detectionSuppressed && analysisGateRef.current?.update(frameRms)
+          const gateOpen = detectionSuppressed
+            ? false
+            : (analysisGateRef.current?.update(frameRms) ?? false);
+          const detection = gateOpen
             ? detectPitch(event.data.samples, event.data.sampleRate)
             : null;
+          const mode = modeRef.current;
+          const hasValidReading =
+            detection !== null && isAcceptedDetection(detection.freq, mode);
           const nextTuning = tuningMachineRef.current?.process({
             detection,
             rms: frameRms,
             nowMs,
-            mode: modeRef.current,
+            mode,
           });
           if (nextTuning !== undefined) {
             setTuning(nextTuning);
+          }
+          const inactivity = updateInactivity(
+            inactivityStateRef.current,
+            nowMs,
+            hasValidReading,
+            detectionSuppressed,
+          );
+          inactivityStateRef.current = inactivity.state;
+          if (inactivity.shouldPause) {
+            pause("inactivity");
           }
         } catch (error: unknown) {
           failSession(sessionId, "unsupported", error);
@@ -288,9 +360,19 @@ export function useTuner(mode: TunerMode): UseTunerResult {
       source.connect(worklet);
       worklet.connect(silentGain);
       silentGain.connect(context.destination);
+      inactivityStateRef.current = {
+        lastActivityAtMs: performance.now(),
+      };
       updateStatus({ kind: "listening" });
     } catch (error: unknown) {
       if (sessionIdRef.current !== sessionId) {
+        return;
+      }
+      if (automaticResume && stage === "audio-context") {
+        sessionIdRef.current += 1;
+        startingRef.current = false;
+        releaseAudioResources(true);
+        updateStatus({ kind: "paused", reason: "resume-required" });
         return;
       }
       const mediaReason =
@@ -301,7 +383,7 @@ export function useTuner(mode: TunerMode): UseTunerResult {
         startingRef.current = false;
       }
     }
-  }, [failSession, releaseAudioResources, updateStatus]);
+  }, [failSession, pause, releaseAudioResources, updateStatus]);
 
   useEffect(() => {
     modeRef.current = mode;
@@ -310,7 +392,14 @@ export function useTuner(mode: TunerMode): UseTunerResult {
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === "hidden") {
-        pause();
+        pause("hidden");
+      } else if (
+        statusRef.current.kind === "paused" &&
+        statusRef.current.reason === "hidden"
+      ) {
+        void start().catch((error: unknown) => {
+          console.error("Não foi possível retomar o afinador.", error);
+        });
       }
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
@@ -321,7 +410,7 @@ export function useTuner(mode: TunerMode): UseTunerResult {
       startingRef.current = false;
       releaseAudioResources(false);
     };
-  }, [pause, releaseAudioResources]);
+  }, [pause, releaseAudioResources, start]);
 
   return { status, tuning, start, pause };
 }
@@ -355,6 +444,64 @@ function stopMediaStream(stream: MediaStream): void {
   for (const track of stream.getTracks()) {
     track.stop();
   }
+}
+
+function isAcceptedDetection(frequencyHz: number, mode: TunerMode): boolean {
+  if (mode.kind === "auto") {
+    return true;
+  }
+  const targetString = STRINGS[mode.stringIndex];
+  return (
+    targetString !== undefined &&
+    Math.abs(centsBetween(frequencyHz, targetString.frequency)) <=
+      MANUAL_LOCK_WINDOW_CENTS
+  );
+}
+
+function resumeAudioContextWithTimeout(
+  context: AudioContext,
+  timeoutMs: number,
+): Promise<boolean> {
+  if (context.state === "running") {
+    return Promise.resolve(true);
+  }
+
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = (resumed: boolean) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      window.clearTimeout(timeoutId);
+      context.removeEventListener("statechange", handleStateChange);
+      resolve(resumed);
+    };
+    const handleStateChange = () => {
+      if (context.state === "running") {
+        finish(true);
+      }
+    };
+    const timeoutId = window.setTimeout(
+      () => finish(context.state === "running"),
+      timeoutMs,
+    );
+    context.addEventListener("statechange", handleStateChange);
+
+    void context.resume().then(
+      () => handleStateChange(),
+      (error: unknown) => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        window.clearTimeout(timeoutId);
+        context.removeEventListener("statechange", handleStateChange);
+        reject(error);
+      },
+    );
+    handleStateChange();
+  });
 }
 
 function warnIfAudioConstraintsWereIgnored(track: MediaStreamTrack): void {
