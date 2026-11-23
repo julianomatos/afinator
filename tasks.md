@@ -5,11 +5,11 @@ Regra: uma tarefa por vez, na ordem. Cada tarefa só termina com `npm run typech
 ## Fase 1: Setup e Motor Matemático (DSP Puro)
 - [x] **T01 — Ajustar o projeto Next.js existente.** Conferir/ativar `strict` e `noUncheckedIndexedAccess` no `tsconfig.json`; garantir Tailwind CSS; instalar Vitest (`environment: 'node'`, alias de paths igual ao do `tsconfig`); regra de lint contra `any` (`@typescript-eslint/no-explicit-any`); criar a estrutura de pastas do AGENTS.md; remover do template o que não for usado (API routes, páginas de exemplo). Scripts: `dev`, `build`, `start`, `test`, `typecheck`, `lint`. Serwist só é instalado e configurado na T15.
   *Pronto quando:* `npm run dev` abre uma página vazia; um teste dummy passa; `typecheck` e `lint` verdes; `any` é barrado pelo lint.
-- [ ] **T02 — `constants.ts` e `pitch.ts`.** Constantes da tabela 5.5 do `spec.md`, cada uma documentada. Funções puras: `freqToMidiFloat`, `midiToFreq`, `noteFromFreq` (nome, oitava, `midi`, `cents`), `centsBetween(freq, target)`, `STRINGS` (calculadas a partir de MIDI 40, 45, 50, 55, 59, 64), `nearestString(freq, maxCents)`.
+- [x] **T02 — `constants.ts` e `pitch.ts`.** Constantes da tabela 5.5 do `spec.md`, cada uma documentada. Funções puras: `freqToMidiFloat`, `midiToFreq`, `noteFromFreq` (nome, oitava, `midi`, `cents`), `centsBetween(freq, target)`, `STRINGS` (calculadas a partir de MIDI 40, 45, 50, 55, 59, 64), `nearestString(freq, maxCents)`.
   *Pronto quando:* testes confirmam as 6 frequências da tabela 5.1 (±0.01 Hz), `cents` de ±50 nas bordas de semitom e `nearestString` retornando `null` além do limite.
-- [ ] **T03 — `test-utils/signals.ts`.** Geradores determinísticos: senoide, soma de harmônicos com amplitudes configuráveis (inclui perfil "fundamental fraca"), ruído branco com PRNG seedado (ex.: mulberry32), mistura por SNR. Sem `Math.random()`.
+- [x] **T03 — `test-utils/signals.ts`.** Geradores determinísticos: senoide, soma de harmônicos com amplitudes configuráveis (inclui perfil "fundamental fraca"), ruído branco com PRNG seedado (ex.: mulberry32), mistura por SNR. Sem `Math.random()`.
   *Pronto quando:* o mesmo seed produz sinais idênticos entre execuções.
-- [ ] **T04 — `yin.ts`.** YIN conforme `spec.md` 5.3 (diferença desde τ=1, CMNDF, limiar absoluto sem fallback global, interpolação parabólica, faixa 65–1000 Hz derivada do `sampleRate`) e `rms()`.
+- [x] **T04 — `yin.ts`.** YIN conforme `spec.md` 5.3 (diferença desde τ=1, CMNDF, limiar absoluto sem fallback global, interpolação parabólica, faixa 65–1000 Hz derivada do `sampleRate`) e `rms()`.
   *Pronto quando:* senoides das 6 cordas em 44100/48000 Hz passam com `|erro| <= 1.5 cents` e silêncio/ruído branco retornam `null`.
 - [ ] **T05 — `smoother.ts`.** Mediana (`MEDIAN_SIZE`) e EMA em `midiFloat`, reset por salto (`JUMP_RESET_CENTS`), `reset()` explícito.
   *Pronto quando:* critério A4 do `spec.md` passa (outlier de oitava, troca de corda).
