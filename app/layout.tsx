@@ -5,6 +5,15 @@ export const metadata: Metadata = {
   applicationName: "Afinador",
   description: "Afine seu violão em tempo real.",
   title: "Afinador de Violão",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Afinador",
+  },
+  icons: {
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
+  },
 };
 
 export const viewport: Viewport = {
