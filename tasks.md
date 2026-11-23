@@ -29,7 +29,7 @@ Regra: uma tarefa por vez, na ordem. Cada tarefa só termina com `npm run typech
 ## Fase 3: Interface e Experiência de Uso
 - [x] **T12 — `TunerMeter.tsx`.** Conforme `ds.md` 4.1: barra −50…+50, nota + oitava, Hz, cents, cor + texto + ícone por estado, `prefers-reduced-motion`.
   *Pronto quando:* storybook-less: página de demonstração com estados simulados (sem sinal, desafinado, quase, afinado) renderiza corretamente em 360 px de largura.
-- [ ] **T13 — `StringSelector.tsx` e `ActionBar.tsx`.** Seletor de 6 cordas (Auto: destaque; Manual: trava), toggle Auto/Manual, `Ouvir Nota`, botão Ligar/Pausar, alvos de toque ≥ 48 px, `safe-area-inset-bottom`.
+- [x] **T13 — `StringSelector.tsx` e `ActionBar.tsx`.** Seletor de 6 cordas (Auto: destaque; Manual: trava), toggle Auto/Manual, `Ouvir Nota`, botão Ligar/Pausar, alvos de toque ≥ 48 px, `safe-area-inset-bottom`.
   *Pronto quando:* usável com uma mão (polegar) em celular de 6", sem rolagem.
 - [ ] **T14 — Integração em `Tuner` + `app/page.tsx`.** Criar o Client Component `Tuner` compondo hooks + componentes; `page.tsx` apenas o renderiza. Configurar `layout.tsx` (`metadata`, `viewport` com `themeColor` e `viewportFit: 'cover'`, `lang="pt-BR"`). Mensagens de estado e erro (`ds.md` seção 5); persistir apenas o último modo (`localStorage`, lido em `useEffect`, com try/catch), sem erro de hidratação.
   *Pronto quando:* fluxo completo funciona em Chrome Android e Safari iOS (idle → permissão → ouvindo → pausar → erro de permissão negada).
