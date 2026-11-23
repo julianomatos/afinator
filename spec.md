@@ -148,5 +148,6 @@ Manuais (dispositivo real):
 - Setup T01: manter a estrutura existente na raiz (`app/`, `lib/`, `hooks/`, `components/`); usar `@tailwindcss/postcss` para integrar Tailwind v4; usar Vitest 3.2.4 por compatibilidade com `@types/node` 20 do projeto.
 - T05: confirmar um salto maior que `JUMP_RESET_CENTS` com uma segunda leitura próxima antes de resetar o smoother; isso preserva a saída diante de um outlier isolado e acrescenta no máximo um frame de latência na troca de nota.
 - T07: a matriz A1 ficou abaixo de 1.5 cents em todos os casos a 30 dB (máximo 0.742). A 20 dB, a meta de 3 cents não foi atingida: erro máximo de 5.428 cents em E2 −40 cents, perfil fundamental dominante, 48 kHz; a suíte usa 5.5 cents como limite observado até otimização posterior. Reduzir `YIN_THRESHOLD` para 0.10 não alterou esse resultado; refinamento parabólico com janela estendida piorou a precisão e foi revertido, portanto `YIN_THRESHOLD` permanece em 0.15.
+- T10: microfone e tom de referência compartilham um `AudioContext` por leases; pausar o microfone não interrompe um tom já iniciado, e o contexto fecha após a liberação do último lease.
 - (Registrar novas decisões aqui.)
  

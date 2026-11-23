@@ -51,3 +51,27 @@ export const STRING_HIGHLIGHT_MAX_CENTS = 100;
 
 /** Maximum pitch distance accepted for a manually selected string, in cents. */
 export const MANUAL_LOCK_WINDOW_CENTS = 300;
+
+/** Peak output gain for a reference tone, relative to full-scale amplitude. */
+export const REFERENCE_TONE_GAIN = 0.3;
+
+/** Reference-tone attack duration, in milliseconds. */
+export const REFERENCE_TONE_ATTACK_MS = 20;
+
+/** Reference-tone release duration, in milliseconds. */
+export const REFERENCE_TONE_RELEASE_MS = 80;
+
+/** Maximum reference-tone playback duration, in milliseconds. */
+export const REFERENCE_TONE_DURATION_MS = 4000;
+
+/** Delay after a reference tone before pitch detection resumes, in milliseconds. */
+export const REFERENCE_TONE_DETECTION_TAIL_MS = 300;
+
+/** Frequencies below this value use harmonics to improve phone-speaker audibility, in hertz. */
+export const REFERENCE_TONE_HARMONIC_CUTOFF_HZ = 150;
+
+/** Relative partial amplitudes used for low guitar-string reference tones. */
+export const REFERENCE_TONE_LOW_HARMONICS = Object.freeze([1, 0.6, 0.35, 0.2]);
+
+/** Relative partial amplitudes used for higher guitar-string reference tones. */
+export const REFERENCE_TONE_HIGH_HARMONICS = Object.freeze([1]);

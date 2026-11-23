@@ -10,6 +10,11 @@ import {
   type TuningState,
 } from "@/lib/audio/tuning-state";
 import { isWorkletFrame } from "@/lib/audio/messages";
+import {
+  isPitchDetectionSuspended,
+  sharedAudioContextManager,
+  type AudioContextLease,
+} from "@/hooks/audio-context";
 
 export type TunerErrorReason =
   | "permission-denied"
@@ -58,7 +63,7 @@ export function useTuner(mode: TunerMode): UseTunerResult {
   const modeRef = useRef(mode);
   const sessionIdRef = useRef(0);
   const startingRef = useRef(false);
-  const contextRef = useRef<AudioContext | null>(null);
+  const contextLeaseRef = useRef<AudioContextLease | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const workletRef = useRef<AudioWorkletNode | null>(null);
@@ -100,19 +105,16 @@ export function useTuner(mode: TunerMode): UseTunerResult {
     streamRef.current = null;
     stream?.getTracks().forEach((track) => track.stop());
 
-    const context = contextRef.current;
-    contextRef.current = null;
+    const contextLease = contextLeaseRef.current;
+    contextLeaseRef.current = null;
     const stateChangeHandler = contextStateChangeRef.current;
     contextStateChangeRef.current = null;
-    if (context !== null) {
+    if (contextLease !== null) {
+      const context = contextLease.context;
       if (stateChangeHandler !== null) {
         context.removeEventListener("statechange", stateChangeHandler);
       }
-      if (context.state !== "closed") {
-        void context.close().catch((error: unknown) => {
-          console.error("Unable to close the tuner AudioContext.", error);
-        });
-      }
+      contextLease.release();
     }
 
     tuningMachineRef.current?.reset();
@@ -183,8 +185,9 @@ export function useTuner(mode: TunerMode): UseTunerResult {
 
     let stage: "audio-context" | "worklet" | "microphone" = "audio-context";
     try {
-      const context = new window.AudioContext();
-      contextRef.current = context;
+      const contextLease = sharedAudioContextManager.acquire();
+      contextLeaseRef.current = contextLease;
+      const context = contextLease.context;
 
       const onContextStateChange = () => {
         const contextState: string = context.state;
@@ -259,13 +262,19 @@ export function useTuner(mode: TunerMode): UseTunerResult {
 
         try {
           const frameRms = rms(event.data.samples);
-          const detection = analysisGateRef.current?.update(frameRms)
+          const nowMs = performance.now();
+          const detectionSuppressed = isPitchDetectionSuspended(nowMs);
+          if (detectionSuppressed) {
+            analysisGateRef.current?.reset();
+          }
+          const detection =
+            !detectionSuppressed && analysisGateRef.current?.update(frameRms)
             ? detectPitch(event.data.samples, event.data.sampleRate)
             : null;
           const nextTuning = tuningMachineRef.current?.process({
             detection,
             rms: frameRms,
-            nowMs: performance.now(),
+            nowMs,
             mode: modeRef.current,
           });
           if (nextTuning !== undefined) {
