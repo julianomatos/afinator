@@ -60,4 +60,26 @@ describe("ActionBar", () => {
     expect(markup).toContain("Tocando…");
     expect(markup).toContain('aria-label="Parar tom de referência"');
   });
+
+  test("offers retries for recoverable microphone errors and disables unsupported browsers", () => {
+    const retryMarkup = renderToStaticMarkup(
+      <ActionBar
+        {...DEFAULT_PROPS}
+        mode={{ kind: "auto" }}
+        tunerStatus={{ kind: "error", reason: "permission-denied" }}
+      />,
+    );
+    const unavailableMarkup = renderToStaticMarkup(
+      <ActionBar
+        {...DEFAULT_PROPS}
+        mode={{ kind: "auto" }}
+        tunerStatus={{ kind: "error", reason: "unsupported" }}
+      />,
+    );
+
+    expect(retryMarkup).toContain('aria-label="Tentar novamente"');
+    expect(unavailableMarkup).toMatch(
+      /aria-label="Ligar microfone"[^>]*disabled=""/,
+    );
+  });
 });

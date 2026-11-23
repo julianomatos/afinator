@@ -50,6 +50,19 @@ export function ActionBar({
     : hasHighlightedString;
   const isListening = tunerStatus.kind === "listening";
   const isRequesting = tunerStatus.kind === "requesting";
+  const isMicrophoneUnavailable =
+    tunerStatus.kind === "error" &&
+    (tunerStatus.reason === "unsupported" ||
+      tunerStatus.reason === "insecure-context");
+  const canRetry =
+    tunerStatus.kind === "error" &&
+    (tunerStatus.reason === "permission-denied" ||
+      tunerStatus.reason === "no-device");
+  const microphoneAction = canRetry
+    ? "Tentar novamente"
+    : isListening
+      ? "Pausar"
+      : "Ligar microfone";
 
   return (
     <div className="space-y-3 pb-[env(safe-area-inset-bottom)]">
@@ -119,19 +132,19 @@ export function ActionBar({
             ? "Solicitando acesso ao microfone"
             : isListening
               ? "Pausar microfone"
-              : "Ligar microfone"
+              : canRetry
+                ? "Tentar novamente"
+                : "Ligar microfone"
         }
         aria-pressed={isListening}
         className="min-h-12 w-full touch-manipulation select-none rounded-lg bg-emerald-500 px-4 font-bold text-zinc-950 transition-colors hover:bg-emerald-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 disabled:cursor-wait disabled:opacity-60 motion-reduce:transition-none"
-        disabled={isRequesting}
+        disabled={isRequesting || isMicrophoneUnavailable}
         onClick={onToggleMicrophone}
         type="button"
       >
         {isRequesting
           ? "Solicitando acesso…"
-          : isListening
-            ? "Pausar"
-            : "Ligar microfone"}
+          : microphoneAction}
       </button>
     </div>
   );

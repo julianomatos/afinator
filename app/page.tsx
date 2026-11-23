@@ -1,3 +1,5 @@
+import { Tuner } from "@/components/Tuner";
+
 export default function Home() {
-  return null;
+  return <Tuner />;
 }
