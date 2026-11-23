@@ -49,10 +49,34 @@ export interface TuningFrame {
   readonly mode: TunerMode;
 }
 
+/** Stateful RMS threshold gate shared by frame processing and pre-YIN analysis. */
+export class RmsGate {
+  private open = false;
+
+  update(frameRms: number): boolean {
+    if (!Number.isFinite(frameRms) || frameRms < 0) {
+      throw new RangeError("rms must be a finite non-negative number");
+    }
+
+    if (this.open) {
+      if (frameRms < RMS_GATE_OFF) {
+        this.open = false;
+      }
+    } else if (frameRms > RMS_GATE_ON) {
+      this.open = true;
+    }
+    return this.open;
+  }
+
+  reset(): void {
+    this.open = false;
+  }
+}
+
 /** Stateful, deterministic frame processor for the tuner UI. */
 export class TuningStateMachine {
   private readonly smoother = new PitchSmoother();
-  private gateOpen = false;
+  private readonly rmsGate = new RmsGate();
   private lastValidAtMs: number | null = null;
   private lastProcessedAtMs: number | null = null;
   private lastMidiFloat: number | null = null;
@@ -78,11 +102,11 @@ export class TuningStateMachine {
     }
     this.previousModeKey = modeKey;
 
-    this.updateGate(frame.rms);
+    const gateOpen = this.rmsGate.update(frame.rms);
     const targetString = getTargetString(frame.mode);
 
     if (
-      this.gateOpen &&
+      gateOpen &&
       frame.detection !== null &&
       this.isWithinManualLock(frame.detection, targetString)
     ) {
@@ -109,19 +133,9 @@ export class TuningStateMachine {
   /** Resets gate, smoothing, hold, and in-tune state. */
   reset(): void {
     this.clearSignalState();
-    this.gateOpen = false;
+    this.rmsGate.reset();
     this.lastProcessedAtMs = null;
     this.previousModeKey = null;
-  }
-
-  private updateGate(frameRms: number): void {
-    if (this.gateOpen) {
-      if (frameRms < RMS_GATE_OFF) {
-        this.gateOpen = false;
-      }
-    } else if (frameRms > RMS_GATE_ON) {
-      this.gateOpen = true;
-    }
   }
 
   private isWithinManualLock(
