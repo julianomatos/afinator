@@ -27,7 +27,7 @@ Regra: uma tarefa por vez, na ordem. Cada tarefa só termina com `npm run typech
 - [ ] **T11 — `useWakeLock.ts`.** Request ao ligar, release ao pausar, reobter em `visibilitychange` visível, tratamento do evento `release`, feature detection com falha silenciosa.
   *Pronto quando:* a tela não apaga durante 2+ minutos de uso e volta a apagar normalmente após pausar.
 ## Fase 3: Interface e Experiência de Uso
-- [ ] **T12 — `TunerMeter.tsx`.** Conforme `ds.md` 4.1: barra −50…+50, nota + oitava, Hz, cents, cor + texto + ícone por estado, `prefers-reduced-motion`.
+- [x] **T12 — `TunerMeter.tsx`.** Conforme `ds.md` 4.1: barra −50…+50, nota + oitava, Hz, cents, cor + texto + ícone por estado, `prefers-reduced-motion`.
   *Pronto quando:* storybook-less: página de demonstração com estados simulados (sem sinal, desafinado, quase, afinado) renderiza corretamente em 360 px de largura.
 - [ ] **T13 — `StringSelector.tsx` e `ActionBar.tsx`.** Seletor de 6 cordas (Auto: destaque; Manual: trava), toggle Auto/Manual, `Ouvir Nota`, botão Ligar/Pausar, alvos de toque ≥ 48 px, `safe-area-inset-bottom`.
   *Pronto quando:* usável com uma mão (polegar) em celular de 6", sem rolagem.
