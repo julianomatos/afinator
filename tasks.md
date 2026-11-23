@@ -11,11 +11,11 @@ Regra: uma tarefa por vez, na ordem. Cada tarefa só termina com `npm run typech
   *Pronto quando:* o mesmo seed produz sinais idênticos entre execuções.
 - [x] **T04 — `yin.ts`.** YIN conforme `spec.md` 5.3 (diferença desde τ=1, CMNDF, limiar absoluto sem fallback global, interpolação parabólica, faixa 65–1000 Hz derivada do `sampleRate`) e `rms()`.
   *Pronto quando:* senoides das 6 cordas em 44100/48000 Hz passam com `|erro| <= 1.5 cents` e silêncio/ruído branco retornam `null`.
-- [ ] **T05 — `smoother.ts`.** Mediana (`MEDIAN_SIZE`) e EMA em `midiFloat`, reset por salto (`JUMP_RESET_CENTS`), `reset()` explícito.
+- [x] **T05 — `smoother.ts`.** Mediana (`MEDIAN_SIZE`) e EMA em `midiFloat`, reset por salto (`JUMP_RESET_CENTS`), `reset()` explícito.
   *Pronto quando:* critério A4 do `spec.md` passa (outlier de oitava, troca de corda).
-- [ ] **T06 — `tuning-state.ts`.** Função/classe pura que recebe `{ detection, rms, nowMs, mode }` e devolve o estado de UI: gate com histerese, hold de `SIGNAL_HOLD_MS`, filtro de janela no modo Manual, cents relativos ao alvo (Manual) ou à nota mais próxima (Auto), destaque de corda, estado Afinado com histerese e `IN_TUNE_MIN_FRAMES`.
+- [x] **T06 — `tuning-state.ts`.** Função/classe pura que recebe `{ detection, rms, nowMs, mode }` e devolve o estado de UI: gate com histerese, hold de `SIGNAL_HOLD_MS`, filtro de janela no modo Manual, cents relativos ao alvo (Manual) ou à nota mais próxima (Auto), destaque de corda, estado Afinado com histerese e `IN_TUNE_MIN_FRAMES`.
   *Pronto quando:* critério A5 passa e "Afinado" não pisca com leitura oscilando entre 3 e 5 cents.
-- [ ] **T07 — Suíte de aceitação DSP.** Matriz do critério A1–A3: cordas × desvios × sample rates × perfis de harmônicos × SNR.
+- [x] **T07 — Suíte de aceitação DSP.** Matriz do critério A1–A3: cordas × desvios × sample rates × perfis de harmônicos × SNR.
   *Pronto quando:* tudo verde; se a meta de 20 dB de SNR não for atingida, o resultado e o ajuste ficam registrados em "Decisões" no `spec.md`.
 ## Fase 2: Captura de Áudio e AudioWorklet
 - [ ] **T08 — Worklet e contrato de mensagens.** `public/worklets/pitch-processor.js` (JS + `// @ts-check` + JSDoc): ring buffer de 4096 amostras, posta `WorkletFrame` (buffer transferível) a cada `HOP_SAMPLES`, só após encher. `src/lib/audio/messages.ts` com tipos e type guard.

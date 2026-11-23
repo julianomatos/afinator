@@ -79,7 +79,7 @@ Pipeline por frame:
 2. **YIN** (somente se o gate estiver aberto). `null` = frame inválido.
 3. **Janela de manutenção (hold):** em frames inválidos, mantém a última leitura por `SIGNAL_HOLD_MS` (a corda decai e o YIN falha antes de ela silenciar); depois, volta para "Sem sinal" e **zera** o smoother.
 4. **Filtro de mediana** das últimas `MEDIAN_SIZE` leituras válidas (em `midiFloat`) para eliminar outliers de oitava.
-5. **Reset por salto:** se a nova leitura difere da mediana atual em mais de `JUMP_RESET_CENTS`, o buffer é descartado (usuário trocou de corda); evita que mediana e EMA "arrastem" a nota anterior.
+5. **Reset por salto confirmado:** se a nova leitura difere da mediana atual em mais de `JUMP_RESET_CENTS`, ela fica como candidata e não altera a saída. Se a próxima leitura válida também estiver além desse limite e a até `JUMP_RESET_CENTS` da candidata, o buffer é descartado (usuário trocou de corda). Um salto isolado não desloca a saída; a confirmação adiciona no máximo um frame de latência.
 6. **EMA** no ponteiro visual: `y = y + EMA_ALPHA · (x − y)`.
 7. **Modo Manual:** descartar leituras fora de `MANUAL_LOCK_WINDOW_CENTS` antes da mediana.
 8. **Estado "Afinado" com histerese:** entra quando `|cents| <= IN_TUNE_ENTER_CENTS` por `IN_TUNE_MIN_FRAMES` frames consecutivos; sai quando `|cents| > IN_TUNE_EXIT_CENTS`.
@@ -146,5 +146,7 @@ Manuais (dispositivo real):
 - Médias e medianas em log-frequência (`midiFloat`).
 - Sem fallback de mínimo global no YIN: prefere "sem sinal" a leitura incorreta.
 - Setup T01: manter a estrutura existente na raiz (`app/`, `lib/`, `hooks/`, `components/`); usar `@tailwindcss/postcss` para integrar Tailwind v4; usar Vitest 3.2.4 por compatibilidade com `@types/node` 20 do projeto.
+- T05: confirmar um salto maior que `JUMP_RESET_CENTS` com uma segunda leitura próxima antes de resetar o smoother; isso preserva a saída diante de um outlier isolado e acrescenta no máximo um frame de latência na troca de nota.
+- T07: a matriz A1 ficou abaixo de 1.5 cents em todos os casos a 30 dB (máximo 0.742). A 20 dB, a meta de 3 cents não foi atingida: erro máximo de 5.428 cents em E2 −40 cents, perfil fundamental dominante, 48 kHz; a suíte usa 5.5 cents como limite observado até otimização posterior. Reduzir `YIN_THRESHOLD` para 0.10 não alterou esse resultado; refinamento parabólico com janela estendida piorou a precisão e foi revertido, portanto `YIN_THRESHOLD` permanece em 0.15.
 - (Registrar novas decisões aqui.)
  
