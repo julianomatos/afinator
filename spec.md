@@ -145,5 +145,6 @@ Manuais (dispositivo real):
 - Next.js (App Router) já adotado no projeto: usado como shell client-side; sem API/Server Actions; SSR limitado a `layout`/`page` finos; PWA via Serwist.
 - Médias e medianas em log-frequência (`midiFloat`).
 - Sem fallback de mínimo global no YIN: prefere "sem sinal" a leitura incorreta.
+- Setup T01: manter a estrutura existente na raiz (`app/`, `lib/`, `hooks/`, `components/`); usar `@tailwindcss/postcss` para integrar Tailwind v4; usar Vitest 3.2.4 por compatibilidade com `@types/node` 20 do projeto.
 - (Registrar novas decisões aqui.)
  
